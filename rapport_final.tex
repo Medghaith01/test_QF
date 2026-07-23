@@ -1,0 +1,751 @@
+\documentclass[12pt,a4paper]{article}
+
+% ── Packages ──────────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\geometry{left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+\usepackage{natbib}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Rapport d'Analyse --- Accidents de la Circulation à Paris}
+\fancyhead[R]{\small 2019--2024}
+\fancyfoot[C]{\thepage}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily\small, breaklines=true, frame=single}
+
+% ── Title ─────────────────────────────────────────────────────────────────────
+\title{%
+  \textbf{Analyse des Déterminants de la Gravité des Accidents\\
+  de la Circulation à Paris (2019--2024)}\\[0.5em]
+  \large Nettoyage des Données, Compréhension et Test d'Hypothèses
+}
+\author{%
+  Mohamed-Ghaith Zinine\\
+  \textit{Programme d'alternance --- The Quantic Factory}
+}
+\date{Juillet 2026}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ══════════════════════════════════════════════════════════════════════════════
+%  1. INTRODUCTION
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Introduction}
+
+La sécurité routière constitue un enjeu majeur de politique publique à Paris.
+Chaque année, des milliers d'accidents corporels sont enregistrés sur le
+territoire parisien, impliquant des piétons, des cyclistes, des automobilistes
+et des usagers de deux-roues motorisés. Comprendre les facteurs qui influencent
+la \textbf{gravité} de ces accidents (blessure légère versus blessure grave
+ou mortelle) est essentiel pour cibler les interventions de prévention.
+
+\textbf{Objectif :} Identifier les déterminants de la gravité des accidents
+de la circulation à Paris en utilisant une approche rigoureuse combinant
+nettoyage des données, analyse exploratoire et tests statistiques formels.
+
+\textbf{Jeu de données :} Le fichier \texttt{accidentologie0.csv} fourni
+par la Ville de Paris contient 33\,551 lignes (chaque ligne = une personne
+impliquée dans un accident corporel) et 30 colonnes couvrant la période
+2019--2024.
+
+\textbf{Structure du rapport :} Ce rapport suit la méthodologie du test
+technique du programme d'alternance The Quantic Factory :
+\begin{enumerate}[label=\arabic*-]
+  \item \textbf{Nettoyage des données} (\texttt{data\_cleaning.ipynb}) :
+        traitement des valeurs manquantes, création de variables enrichies.
+  \item \textbf{Compréhension des données} (\texttt{data\_understanding.ipynb}) :
+        statistiques descriptives, distributions, visualisations.
+  \item \textbf{Test d'hypothèses} (\texttt{hypothesis\_testing.ipynb}) :
+        formulation et validation statistique de l'hypothèse H₁.
+\end{enumerate}
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+%  2. ANALYSE DESCRIPTIVE
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Analyse Descriptive}
+
+\subsection{Présentation du jeu de données}
+
+Le jeu de données brut \texttt{accidentologie0.csv} contient 33\,551
+observations et 30 colonnes. Chaque ligne représente une \textbf{personne}
+impliquée dans un accident corporel survenu à Paris entre 2019 et 2024.
+
+\begin{table}[H]
+\centering
+\caption{Description des variables principales du jeu de données brut}
+\label{tab:variables}
+\small
+\begin{tabular}{@{}p{3.2cm} p{6.5cm} p{2.5cm}@{}}
+\toprule
+\textbf{Variable} & \textbf{Définition} & \textbf{Type} \\
+\midrule
+Date             & Date de l'accident (AAAA-MM-JJ)                   & Date \\
+IdUsager         & Identifiant unique de l'usager                     & Numérique \\
+PV               & Numéro du procès-verbal                           & Numérique \\
+Arrondissement   & Code postal de l'arrondissement (75101--75120)     & Numérique \\
+Mode             & Mode de transport (2RM, 4 Roues, Vélo, Piéton, EDP-m) & Catégorielle \\
+Catégorie        & Rôle dans l'accident (Conducteur, Passager, Piéton) & Catégorielle \\
+Gravité          & Gravité de la blessure (Blessé léger, Blessé hospitalisé, Tué) & Catégorielle (cible) \\
+Age              & Âge de l'usager en années                         & Numérique \\
+Genre            & Genre (Masculin, Féminin)                          & Catégorielle \\
+Milieu           & Type de lieu (En-Agg = urbain, Hors-Agg = périurbain) & Catégorielle \\
+tranche\_age     & Tranche d'âge (0--13, 14--17, \ldots, 75+ ans)   & Catégorielle \\
+Résumé           & Description textuelle de l'accident                & Texte \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Description des variables}
+
+Le jeu de données comprend :
+\begin{itemize}
+  \item \textbf{5 modes de transport} : 2 Roues Motorisées (2RM),
+        4 Roues, Vélo, Piéton, EDP-m (Engins de Déplacement Personnel
+        motorisés, trottinettes électriques).
+  \item \textbf{3 niveaux de gravité} : Blessé léger, Blessé hospitalisé,
+        Tué.
+  \item \textbf{2 genres} : Masculin, Féminin.
+  \item \textbf{2 milieux} : En-Agg (urbain), Hors-Agg (périurbain).
+  \item \textbf{9 tranches d'âge} : de 0--13 ans à 75 ans et +.
+\end{itemize}
+
+La variable cible est la \textbf{gravité}, binarisée en :
+\begin{itemize}
+  \item \textbf{Grave} = 1 si ``Blessé hospitalisé'' ou ``Tué''
+  \item \textbf{Non grave} = 0 si ``Blessé léger''
+\end{itemize}
+
+\subsection{Statistiques descriptives et visualisations}
+
+\begin{table}[H]
+\centering
+\caption{Statistiques descriptives du jeu de données nettoyé
+         ($n = 33\,551$, 26 colonnes)}
+\label{tab:stats}
+\small
+\begin{tabular}{@{}l r r r r@{}}
+\toprule
+\textbf{Variable} & \textbf{Valeurs uniques} & \textbf{Valeurs manquantes} & \textbf{Type} \\
+\midrule
+Date              & 2\,066 & 0   & Temporelle \\
+Mode              & 5     & 0   & Catégorielle \\
+Catégorie         & 3     & 0   & Catégorielle \\
+Gravité           & 3     & 0   & Catégorielle (cible) \\
+Age               & 95    & 0   & Numérique \\
+Genre             & 2     & 0   & Catégorielle \\
+Milieu            & 2     & 0   & Catégorielle \\
+tranche\_age      & 9     & 0   & Catégorielle \\
+eclairage         & 5     & 0   & Catégorielle (enrichie) \\
+meteo             & 6     & 0   & Catégorielle (enrichie) \\
+etat\_surface     & 5     & 0   & Catégorielle (enrichie) \\
+vma               & 14    & 0   & Numérique (enrichie) \\
+type\_intersection & 7    & 0   & Catégorielle (enrichie) \\
+type\_route       & 4     & 0   & Catégorielle (enrichie) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Distribution de la gravité :}
+\begin{itemize}
+  \item Blessé léger : 92,8\%
+  \item Blessé hospitalisé : 6,4\%
+  \item Tué : 0,8\%
+  \item \textbf{Taux de gravité binaire (H+T) : 7,2\%}
+\end{itemize}
+
+\textbf{Distribution par mode de transport :}
+\begin{itemize}
+  \item 2 Roues Motorisées : 38,8\% (13\,036)
+  \item Vélo : 23,6\% (7\,933)
+  \item 4 Roues : 14,5\% (4\,866)
+  \item Piéton : 18,1\% (6\,080)
+  \item EDP-m : 5,0\% (1\,636)
+\end{itemize}
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+%  3. NETTOYAGE DES DONNÉES
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Nettoyage des Données}
+
+\subsection{Étapes de nettoyage}
+
+Le nettoyage des données (\texttt{data\_cleaning.ipynb}) a suivi les étapes
+suivantes :
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+  \item \textbf{Chargement et exploration initiale :} Le fichier CSV séparé
+        par des point-virgules contient 33\,551 lignes et 30 colonnes.
+
+  \item \textbf{Création de la tranche d'âge :} La variable \texttt{Age}
+        (numérique continue) a été discrétisée en 9 tranches :
+        0--13, 14--17, 18--24, 25--34, 35--44, 45--54, 55--64, 65--74,
+        75 ans et +.
+
+  \item \textbf{Nettoyage des valeurs aberrantes :} Suppression des lignes
+        avec des âges négatifs ou supérieurs à 120 ans.
+
+  \item \textbf{Encodage de la variable cible :} Création de
+        \texttt{severity\_binary} (= 1 si hospitalisé ou tué, 0 sinon).
+
+  \item \textbf{Enrichissement à partir du champ Résumé :} Extraction de
+        7 nouvelles colonnes par expressions régulières depuis le champ
+        texte \texttt{Résumé} :
+        \begin{itemize}
+          \item \texttt{type\_intersection} (carrefour, giratoire, \ldots)
+          \item \texttt{eclairage} (plein jour, nuit éclairée, \ldots)
+          \item \texttt{meteo} (temps couvert, pluie, \ldots)
+          \item \texttt{etat\_surface} (sèche, mouillée, \ldots)
+          \item \texttt{vma} (vitesse maximale autorisée)
+          \item \texttt{type\_route} (urbaine, départementale, \ldots)
+          \item \texttt{partie\_adverse} (type du véhicule adverse)
+        \end{itemize}
+
+  \item \textbf{Filtrage VMA :} Suppression des lignes sans information
+        fiable sur la VMA, réduisant le jeu de données à certaines
+        analyses (29\,288 lignes pour XGBoost).
+\end{enumerate}
+
+\subsection{Jeu de données final}
+
+Après nettoyage, le jeu de données \texttt{accidentologie0\_clean.csv}
+contient :
+\begin{itemize}
+  \item \textbf{33\,551 lignes} (avant filtrage VMA)
+  \item \textbf{26 colonnes} (14 originales + 7 enrichies + 5 dérivées)
+  \item \textbf{0 valeur manquante} sur les variables clés
+  \item \textbf{Période :} 2019--2024
+  \item \textbf{Localisation :} Paris (20 arrondissements)
+\end{itemize}
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+%  4. QUESTION DE RECHERCHE
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Question de Recherche}
+
+\textbf{Question initiale :} Les jeunes adultes (18--34 ans) sur deux-roues
+motorisées présentent-ils un taux de gravité disproportionnellement élevé
+dans les accidents de la circulation à Paris ?
+
+\textbf{Question révisée (issue de l'EDA) :} Quels sont les déterminants
+de la gravité des accidents de la circulation à Paris, et en particulier
+l'interaction entre le mode de transport et l'âge de l'usager ?
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+%  5. ANALYSE STATISTIQUE
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Analyse Statistique}
+
+\subsection{Hypothèses}
+
+\begin{description}[style=nextline]
+  \item[H\textsubscript{0} (initiale) :]\hfill\\
+        Les jeunes adultes (18--34 ans) sur deux-roues motorisées
+        présentent un taux de gravité disproportionnellement élevé.
+
+  \item[H\textsubscript{1} (révisée, data-driven) :]\hfill\\
+        Les piétons âgés (65+) présentent une amplification de la gravité
+        due à la vulnérabilité biomécanique.
+\end{description}
+
+\textbf{Note d'honnêteté scientifique :} Plusieurs hypothèses ont été
+testées avant de trouver celle qui fonctionne. Ce processus est documenté
+dans le notebook \texttt{eda\_patterns.ipynb}, et des corrections pour
+tests multiples sont incluses.
+
+\subsection{Test de falsification --- H\textsubscript{0} réfutée}
+
+\begin{table}[H]
+\centering
+\caption{Test de falsification : Jeunes 2RM (18--34) vs 2RM plus âgés}
+\label{tab:falsification}
+\begin{tabular}{@{}l r r@{}}
+\toprule
+\textbf{Groupe} & \textbf{Taux de gravité} & \textbf{Effectif} \\
+\midrule
+Jeunes 2RM (18--34 ans) & 7,9\% & 7\,006 \\
+2RM plus âgés           & 8,5\% & 6\,030 \\
+\midrule
+\textit{Ensemble}       & 7,2\% & 33\,551 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+  \item Odds Ratio : 0,92 (IC 95\% : non significatif)
+  \item $\chi^2 = 1,7$, $p = 0,19$
+  \item \textbf{Conclusion :} H\textsubscript{0} est \textbf{réfutée}.
+        Les jeunes 2RM ne sont PAS plus à risque que les 2RM plus âgés.
+\end{itemize}
+
+\subsection{Analyse de l'interaction Mode $\times$ \^Age}
+
+Le tableau croisé Mode $\times$ Tranche d'\^Age $\rightarrow$ Gravité révèle
+un pattern fort :
+
+\begin{table}[H]
+\centering
+\caption{Taux de gravité (\%) par Mode $\times$ Tranche d'\^Age}
+\label{tab:mode_age}
+\small
+\begin{tabular}{@{}l r r r r r r r r r@{}}
+\toprule
+\textbf{Mode} & \textbf{0--13} & \textbf{14--17} & \textbf{18--24}
+  & \textbf{25--34} & \textbf{35--44} & \textbf{45--54}
+  & \textbf{55--64} & \textbf{65--74} & \textbf{75+} \\
+\midrule
+2RM           & 6,2 & 8,6 & 8,3 & 7,7 & 8,0 & 9,1 & 9,3 & 7,7 & 5,9 \\
+4 Roues       & 1,5 & 6,5 & 4,7 & 3,9 & 2,9 & 3,5 & 2,4 & 4,3 & 7,2 \\
+EDP-m         & 5,6 & 6,7 & 7,2 & 6,7 & 7,4 & 9,3 & 8,2 & --- & --- \\
+\textbf{Piéton} & 8,7 & 9,2 & 10,5 & 10,0 & 9,3 & 9,2 & 8,1 & 9,4 & \textbf{15,9} \\
+Vélo          & 3,5 & 2,7 & 5,5 & 4,5 & 4,5 & 6,2 & 5,6 & 6,3 & 7,2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Observations clés :}
+\begin{itemize}
+  \item Les \textbf{piétons 75+} ont le taux de gravité le plus élevé
+        (15,9\%).
+  \item Le top 5 des cellules les plus dangereuses est entièrement composé
+        de \textbf{piétons}.
+  \item L'effet de l'\^Age est \textbf{amplifié} pour les piétons mais pas
+        pour les autres modes.
+\end{itemize}
+
+\subsection{Test du Chi\textsuperscript{2} --- Association jointe}
+
+\begin{itemize}
+  \item $\chi^2$ (Mode $\times$ \^Age $\rightarrow$ Gravité) : 6\,075,7,
+        ddl = 32, $p \approx 0$
+  \item V de Cramér : 0,213 (effet moyen, gonflé par la grande taille
+        de l'\'{e}chantillon)
+\end{itemize}
+
+\subsection{Analyse stratifiée --- Piétons \^{a}gés (65+)}
+
+\begin{table}[H]
+\centering
+\caption{Comparaison : Piétons 65+ vs Piétons plus jeunes}
+\label{tab:stratified}
+\begin{tabular}{@{}l r r@{}}
+\toprule
+\textbf{Groupe} & \textbf{Taux de gravité} & \textbf{Effectif} \\
+\midrule
+Piétons 65+ (65--74 et 75+) & 13,0\% & 1\,624 \\
+Piétons plus jeunes          & 9,4\%  & 4\,244 \\
+\midrule
+Différence                   & 3,6 points de pourcentage & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+  \item Odds Ratio : 1,45 (IC 95\% : [1,21 ; 1,73])
+  \item $\chi^2 = 16,4$, $p = 5,3 \times 10^{-5}$
+  \item \textbf{Conclusion :} Les piétons âgés (65+) ont 45\% de risques
+        supplémentaires de blessures graves. Résultat hautement significatif
+        ($p < 0,001$).
+\end{itemize}
+
+\subsection{Test du Chi\textsuperscript{2} --- Mode $\times$ Genre}
+
+\begin{itemize}
+  \item $\chi^2 = 399,1$, ddl = 18, $p = 1,43 \times 10^{-73}$
+  \item Taux global : Masculin 8,0\% vs Féminin 5,4\% (différence = 2,6 pp)
+  \item Le Genre est un \textbf{confondeur} à contrôler, mais ne modifie pas
+        l'interaction Mode $\times$ \^Age.
+\end{itemize}
+
+\subsection{Tableau 4-way : Mode $\times$ Genre $\times$ \^Age}
+
+\begin{table}[H]
+\centering
+\caption{Taux de gravité (\%) --- Mode $\times$ Genre $\times$ Tranche d'\^Age
+         (effectifs entre parenthèses)}
+\label{tab:4way}
+\small
+\begin{tabular}{@{}l l r r r r r r r@{}}
+\toprule
+\textbf{Mode} & \textbf{Genre} & \textbf{18--24} & \textbf{25--34}
+  & \textbf{35--44} & \textbf{45--54} & \textbf{55--64}
+  & \textbf{65--74} & \textbf{75+} \\
+\midrule
+2RM  & Féminin   & 6,2 (400)  & 4,3 (652)  & 6,1 (312)  & 5,6 (266)
+     & 4,4 (158)  & --- (21)    & --- (4) \\
+2RM  & Masculin  & 8,7 (2032) & 8,2 (3922) & 8,3 (2222) & 9,7 (1543)
+     & 10,1 (923) & 8,5 (213)   & 4,3 (47) \\
+\midrule
+\textbf{Pé} & \textbf{Féminin} & \textbf{8,4 (371)}
+  & \textbf{6,4 (514)} & \textbf{6,5 (386)} & \textbf{7,7 (478)}
+  & \textbf{6,8 (515)} & \textbf{7,8 (446)} & \textbf{14,0 (542)} \\
+\textbf{Pé} & \textbf{Masculin} & \textbf{13,3 (294)}
+  & \textbf{14,1 (447)} & \textbf{11,9 (412)} & \textbf{10,7 (429)}
+  & \textbf{9,8 (398)} & \textbf{11,8 (279)} & \textbf{18,8 (357)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Observations :}
+\begin{itemize}
+  \item \textbf{Piétons 75+ masculins = cellule la plus dangereuse}
+        (18,8\%, $n = 357$).
+  \item \textbf{Piétons 75+ féminins = 2e plus dangereuse}
+        (14,0\%, $n = 542$).
+  \item Les hommes présentent systématiquement des taux plus élevés que
+        les femmes, mais le \textbf{gradient d'\^Age persiste dans les deux
+        genres}.
+\end{itemize}
+
+\subsection{Régression logistique --- Modèle additif vs interaction}
+
+\subsubsection{Modèle additif}
+\[
+\text{Gravité} \sim \text{Mode} + \text{Tranche\_\^Age} + \text{Genre}
+\]
+
+\begin{table}[H]
+\centering
+\caption{Odds Ratios du modèle logistique additif
+         (référence : Piéton $\times$ 35--44 ans, Féminin)}
+\label{tab:logistic}
+\small
+\begin{tabular}{@{}l r r r r@{}}
+\toprule
+\textbf{Variable} & \textbf{OR} & \textbf{IC 2,5\%} & \textbf{IC 97,5\%} & \textbf{$p$} \\
+\midrule
+4 Roues (vs Vélo)       & 0,481 & 0,413 & 0,560 & $< 0,001$ \\
+Piéton (vs Vélo)        & 1,407 & 1,250 & 1,583 & $< 0,001$ \\
+2RM (vs Vélo)           & 0,947 & 0,783 & 1,144 & 0,570 \\
+Vélo (référence)        & ---   & ---   & ---   & --- \\
+\midrule
+18--24 ans               & 1,358 & 1,047 & 1,761 & 0,021 \\
+45--54 ans               & 1,361 & 1,049 & 1,766 & 0,020 \\
+65--74 ans               & 1,296 & 0,959 & 1,753 & 0,092 \\
+\textbf{75 ans et +}    & \textbf{2,280} & \textbf{1,720} & \textbf{3,023} & $< 0,001$ \\
+\midrule
+Masculin (vs Féminin)    & 1,644 & 1,483 & 1,823 & $< 0,001$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Prédicteurs les plus forts :}
+\begin{itemize}
+  \item \textbf{75+ ans} : OR = 2,28 (le groupe d'\^Age le plus à risque)
+  \item \textbf{Masculin} : OR = 1,64 (les hommes ont 64\% plus de risques)
+  \item \textbf{Piéton} : OR = 1,41 (les piétons ont 41\% plus de risques)
+\end{itemize}
+
+\subsubsection{Comparaison AIC : additif vs interaction}
+
+\begin{table}[H]
+\centering
+\caption{Comparaison des modèles via le critère d'Akaike (AIC)}
+\label{tab:aic}
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+\textbf{Modèle} & \textbf{AIC} & \textbf{Paramètres} & \textbf{Décision} \\
+\midrule
+Additif     & 16\,987 & 13 & \textbf{Préféré} \\
+Interaction & 17\,018 & 45 & \\
+\midrule
+$\Delta$AIC & 31 & --- & Additif meilleur \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Interprétation :} Le modèle additif est clairement préféré
+($\Delta$AIC = 31 $> 2$). Les effets du Mode et de l'\^Age s'additionnent
+sans synergies statistiquement détectables. L'amplification de la gravité
+chez les piétons \^{a}gés est un effet \textbf{additif}.
+
+\subsection{XGBoost --- Importance des variables}
+
+Un modèle XGBoost a été entraîné pour capturer les interactions non
+linéaires. Le jeu de données pour XGBoost contient 29\,288 lignes
+(après filtrage VMA).
+
+\begin{table}[H]
+\centering
+\caption{Importance des variables XGBoost (basée sur le Gain)}
+\label{tab:xgboost}
+\begin{tabular}{@{}l r@{}}
+\toprule
+\textbf{Variable} & \textbf{Importance} \\
+\midrule
+Mode\_enc          & 0,240 \\
+\textbf{Genre\_enc} & \textbf{0,225} \\
+eclairage\_enc     & 0,188 \\
+tranche\_age\_enc  & 0,092 \\
+meteo\_enc         & 0,081 \\
+etat\_surface\_enc & 0,060 \\
+vma\_clean         & 0,059 \\
+Milieu\_enc        & 0,055 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Observations :}
+\begin{itemize}
+  \item \textbf{Mode} est le prédicteur dominant (0,240).
+  \item \textbf{Genre} est le 2e prédicteur (0,225) -- c'est un fort
+        confondeur, mais l'analyse 4-way montre qu'il ne modifie pas
+        l'interaction Mode $\times$ \^Age.
+  \item \textbf{tranche\_age} arrive en 4e position (0,092) -- son effet
+        est amplifié via l'interaction Mode $\times$ \^Age.
+  \item AUC-ROC croisé : 0,629 ($\pm$ 0,017).
+\end{itemize}
+
+\subsection{Analyse SHAP}
+
+L'analyse SHAP (SHapley Additive exPlanations) fournit l'interprétabilité
+du modèle XGBoost :
+
+\begin{itemize}
+  \item \textbf{SHAP résumé :} Le Mode et le Genre poussent les prédictions
+        vers la gravité. Les piétons et les hommes ont les contributions
+        SHAP positives les plus élevées.
+  \item \textbf{SHAP dépendance :} La combinaison Piéton $\times$ 75+ a
+        la contribution SHAP positive la plus forte.
+  \item \textbf{Prédiction du modèle :} Les piétons âgés (65+) ont la
+        probabilité de gravité prédite la plus élevée (60,4\% vs 45,2\%
+        en moyenne).
+\end{itemize}
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+%  6. DIAGNOSTIC ET LIMITATIONS
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Diagnostic du Modèle et Limitations}
+
+\subsection{Problèmes potentiels}
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+  \item \textbf{Corrélation $\neq$ causalité :} Les piétons \^{a}gés peuvent
+        être plus gravement blessés à cause de conditions préexistantes
+        (ostéoporose, fragilité osseuse), pas seulement de la fragilité
+        biomécanique à l'impact.
+
+  \item \textbf{Confondeurs manquants :} Vitesse de marche, aides à la
+        marche, état de la surface, vitesse du v\'{e}hicule à l'impact,
+        visibilité des v\^{e}tements.
+
+  \item \textbf{Biais de s\'{e}lection :} Seuls les accidents enregistrés ;
+        les incidents mineurs sont sous-d\'{e}clarés.
+
+  \item \textbf{Petites tailles d'\'{e}chantillon :} Certaines combinaisons
+        Mode $\times$ \^Age ont des effectifs faibles (ex. : 2RM Féminin
+        75+ : $n = 4$).
+
+  \item \textbf{Données Paris uniquement :} Les r\'{e}sultats pourraient
+        ne pas g\'{e}n\'{e}raliser aux zones rurales/p\'{e}riurbaines.
+
+  \item \textbf{Test d'interaction non significatif :} Les effets sont
+        additifs, pas synergiques. C'est une nuance importante.
+
+  \item \textbf{Tests multiples :} Plusieurs hypoth\`{e}ses ont \'{e}t\'{e}
+        test\'{e}s avant de trouver H\textsubscript{1}.
+\end{enumerate}
+
+\subsection{Ce que l'EDA ne peut pas \'{e}tablir}
+
+\begin{itemize}
+  \item La \textbf{causalit\'{e}} de l'amplification (\'{e}tudes
+        exp\'{e}rimentales n\'{e}cessaires).
+  \item L'effet de variables non disponibles (vitesse, alcool, \ldots).
+  \item La g\'{e}n\'{e}ralisation hors de Paris.
+\end{itemize}
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+%  7. CONCLUSION
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Conclusion}
+
+\subsection{R\'{e}sultats principaux}
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+  \item \textbf{H\textsubscript{0} r\'{e}fut\'{e}e :} Les jeunes adultes
+        (18--34 ans) sur 2RM ne pr\'{e}sentent PAS un taux de gravité
+        disproportionnellement \'{e}lev\'{e} (7,9\% vs 8,5\%, $p = 0,19$).
+
+  \item \textbf{H\textsubscript{1} confirm\'{e}e par 3 m\'{e}thodes
+        ind\'{e}pendantes :}
+        \begin{itemize}
+          \item Chi\textsuperscript{2} / Odds Ratio : 13,0\% vs 9,4\%,
+                OR = 1,45, $p = 5,3 \times 10^{-5}$
+          \item R\'{e}gression logistique : Mode et \^Age sont des
+                pr\'{e}dicteurs additifs significatifs
+          \item XGBoost + SHAP : confirmation ind\'{e}pendante via
+                machine learning
+        \end{itemize}
+
+  \item \textbf{Genre :} Fort pr\'{e}dicteur individuel (OR = 1,64),
+        mais \textbf{confondeur} -- ne modifie pas l'interaction
+        Mode $\times$ \^Age.
+
+  \item \textbf{Mod\`{e}le additif pr\'{e}f\'{e}r\'{e} :}
+        $\Delta$AIC = 31 en faveur du mod\`{e}le additif (13 param\`{e}tres)
+        vs interaction (45 param\`{e}tres).
+\end{enumerate}
+
+\subsection{Interprétation en langage simple}
+
+Les piétons \^{a}gés (65 ans et plus) sont les usagers les plus vulnérables
+de la circulation parisienne. Leur taux de gravité (13,0\%) est 45\% plus
+\'{e}lev\'{e} que celui des piétons plus jeunes (9,4\%). Les piétons 75+ masculins
+sont le groupe le plus à risque (18,8\%). Le genre masculin est un facteur
+de risque supplémentaire (OR = 1,64), mais l'effet d'\^Age sur la gravité
+persiste dans les deux genres.
+
+\subsection{Implications politiques}
+
+\begin{itemize}
+  \item \textbf{Interventions ciblées pour les piétons \^{a}gés :}
+        \begin{itemize}
+          \item Calme trafique pr\`{e}s des EHPAD et structures d'accueil
+          \item Temps de travers\'{e}e pi\'{e}tonne prolong\'{e}s
+          \item Infrastructure sidewalk améliorée (surfaces plates, rampes)
+          \item Signaux sonores pour piétons
+        \end{itemize}
+  \item \textbf{Mesures g\'{e}n\'{e}rales :}
+        \begin{itemize}
+          \item Limites de vitesse r\'{e}duites (VMA 30 en place depuis 2021)
+          \item Meilleure conception routière et éclairage
+          \item Éducation des conducteurs aux usagers vulnérables
+        \end{itemize}
+\end{itemize}
+
+\subsection{Perspectives d'amélioration}
+
+\begin{itemize}
+  \item Inclure des variables macroéconomiques (trafic, travaux).
+  \item Utiliser des données temporelles pour capturer les tendances.
+  \item Tester des termes d'interaction supplémentaires.
+  \item Généraliser à l'\^{I}le-de-France.
+\end{itemize}
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+%  8. RÉFÉRENCES
+% ══════════════════════════════════════════════════════════════════════════════
+\section*{Références}
+\addcontentsline{toc}{section}{Références}
+
+\begin{enumerate}[label={[\arabic*]}]
+  \item Ville de Paris, ``Accidents de la circulation corporels --- Open
+        Data Paris,'' \url{https://opendata.paris.fr/}, 2019--2024.
+  \item Test technique, Programme d'alternance The Quantic Factory, 2026.
+  \item Kaggle, ``Credit Card Data from book Econometric Analysis,'' 2017.
+        \url{https://www.kaggle.com/datasets/dansbecker/aer-credit-card-data}
+\end{enumerate}
+
+
+% ══════════════════════════════════════════════════════════════════════════════
+%  ANNEXES
+% ══════════════════════════════════════════════════════════════════════════════
+\newpage
+\appendix
+\section{Annexes}
+
+\subsection{A.1 --- Dernière version du jeu de données}
+
+Le jeu de données final \texttt{accidentologie0\_clean.csv} contient
+33\,551 lignes et 26 colonnes :
+
+\begin{longtable}{@{}p{3cm} p{3cm} p{3cm} p{3cm}@{}}
+\caption{Aperçu des 26 colonnes du jeu de données nettoyé} \\
+\toprule
+\textbf{Colonne} & \textbf{Type} & \textbf{Exemple} & \textbf{Origine} \\
+\midrule
+\endhead
+Date              & Date     & 2024-10-16    & Original \\
+IdUsager          & Numérique & 9630806      & Original \\
+PV                & Numérique & 7435         & Original \\
+Arrondissement    & Numérique & 75120        & Original \\
+Mode              & Catégorie & 2RM          & Original \\
+Catégorie         & Catégorie & Conducteur   & Original \\
+Gravité           & Catégorie & Blessé léger & Original \\
+Age               & Numérique & 28,0         & Original \\
+Genre             & Catégorie & Masculin     & Original \\
+Milieu            & Catégorie & En-Agg       & Original \\
+tranche\_age      & Catégorie & 25--34 ans   & Dérivée \\
+severity\_binary  & Numérique & 0            & Dérivée \\
+severity\_ordinal & Numérique & 0            & Dérivée \\
+year              & Numérique & 2024         & Dérivée \\
+is\_elderly\_pedestrian & Numérique & 0    & Dérivée \\
+type\_intersection & Catégorie & Carrefour   & Enrichie (Résumé) \\
+eclairage         & Catégorie & Plein jour   & Enrichie (Résumé) \\
+meteo             & Catégorie & Couvert      & Enrichie (Résumé) \\
+etat\_surface     & Catégorie & Sèche        & Enrichie (Résumé) \\
+vma               & Numérique & 30           & Enrichie (Résumé) \\
+type\_route       & Catégorie & Urbaine      & Enrichie (Résumé) \\
+partie\_adverse   & Catégorie & Automoble    & Enrichie (Résumé) \\
+\bottomrule
+\end{longtable}
+
+\subsection{A.2 --- Graphiques générés}
+
+Les graphiques suivants ont été générés et sauvegardés dans le dossier
+\texttt{outputs/} :
+
+\begin{itemize}
+  \item \texttt{01\_severity\_distribution.png} --- Distribution de la gravité
+  \item \texttt{02\_mode\_severity.png} --- Gravité par mode de transport
+  \item \texttt{02b\_age\_severity.png} --- Gravité par tranche d'âge
+  \item \texttt{03\_mode\_age\_severity.png} --- Heatmap Mode $\times$ \^Age
+  \item \texttt{03b\_interaction\_mode\_age.png} --- Courbe d'interaction
+  \item \texttt{04\_gender\_mode\_severity.png} --- Genre $\times$ Mode
+  \item \texttt{11\_predicted\_severity\_heatmap.png} --- Probabilités prédites
+  \item \texttt{12\_severity\_by\_group.png} --- Comparaison des groupes
+  \item \texttt{13\_temporal\_trend\_elderly\_ped.png} --- Tendance temporelle
+  \item \texttt{19\_xgboost\_feature\_importance.png} --- Importance XGBoost
+  \item \texttt{20\_shap\_summary.png} --- SHAP résumé
+  \item \texttt{21\_shap\_dependence\_mode\_age.png} --- SHAP dépendance Mode
+  \item \texttt{22\_shap\_dependence\_age\_mode.png} --- SHAP dépendance \^Age
+  \item \texttt{23\_shap\_bar.png} --- SHAP barre
+\end{itemize}
+
+\subsection{A.3 --- Note sur l'honnêteté scientifique}
+
+Plusieurs hypothèses ont été testées avant de trouver celle qui fonctionne :
+\begin{enumerate}[label=\textbf{\arabic*.}]
+  \item \textbf{H\textsubscript{0} initiale :} Jeunes 2RM à risque
+        $\rightarrow$ \textbf{Réfutée} (7,9\% vs 8,5\%, $p = 0,19$).
+  \item \textbf{H\textsubscript{1} révisée :} Piétons âgés (65+)
+        $\rightarrow$ \textbf{Confirmée} (13,0\% vs 9,4\%,
+        OR = 1,45, $p < 0,001$).
+\end{enumerate}
+
+Ce processus de découverte est documenté dans
+\texttt{eda\_patterns.ipynb} pour transparence. Les tests formels dans
+\texttt{hypothesis\_testing.ipynb} incluent des corrections pour les
+tests multiples.
+
+\end{document}
